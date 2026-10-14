@@ -3,16 +3,18 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Pattern Tile Generator</title>
+  <title>3D & Geometric Pattern Generator</title>
+  <!-- Three.js (軽量3Dレンダリング用) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <style>
     :root {
-      --bg: #121316;
-      --panel-bg: #1e2025;
-      --border: #2e323b;
-      --accent: #4f46e5;
-      --accent-hover: #4338ca;
+      --bg: #0e1015;
+      --panel: #181b22;
+      --border: #282d3a;
+      --accent: #6366f1;
+      --accent-hover: #4f46e5;
       --text: #f3f4f6;
-      --text-muted: #9ca3af;
+      --text-muted: #94a3b8;
     }
 
     * {
@@ -23,7 +25,7 @@
     }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       background: var(--bg);
       color: var(--text);
       display: flex;
@@ -33,108 +35,111 @@
     }
 
     header {
-      padding: 12px 24px;
+      padding: 12px 20px;
+      background: var(--panel);
       border-bottom: 1px solid var(--border);
-      background: var(--panel-bg);
       display: flex;
       justify-content: space-between;
       align-items: center;
+      z-index: 20;
     }
 
     header h1 {
-      font-size: 1.1rem;
+      font-size: 1.05rem;
       font-weight: 600;
+      letter-spacing: 0.03em;
       display: flex;
       align-items: center;
       gap: 8px;
     }
 
-    .main-container {
+    .main-wrap {
       display: flex;
       flex: 1;
-      height: calc(100vh - 57px);
+      height: calc(100vh - 54px);
     }
 
-    /* 左側: エディタ・操作パネル */
+    /* 左側コントロール */
     .sidebar {
-      width: 380px;
-      background: var(--panel-bg);
+      width: 360px;
+      background: var(--panel);
       border-right: 1px solid var(--border);
-      padding: 20px;
+      padding: 18px;
       display: flex;
       flex-direction: column;
-      gap: 18px;
+      gap: 16px;
       overflow-y: auto;
+      z-index: 10;
     }
 
-    .section-title {
-      font-size: 0.8rem;
+    .section-label {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--text-muted);
       text-transform: uppercase;
       letter-spacing: 0.05em;
-      color: var(--text-muted);
-      margin-bottom: 8px;
+      margin-bottom: 6px;
     }
 
-    .control-row {
+    .btn-group {
       display: flex;
-      gap: 8px;
-      align-items: center;
+      flex-wrap: wrap;
+      gap: 6px;
     }
 
     .btn {
-      background: #2a2d35;
+      background: #232833;
       color: var(--text);
       border: 1px solid var(--border);
       padding: 6px 12px;
       border-radius: 6px;
+      font-size: 0.82rem;
       cursor: pointer;
-      font-size: 0.85rem;
       transition: all 0.15s ease;
     }
 
     .btn:hover {
-      background: #373b45;
+      background: #303746;
     }
 
     .btn.active {
       background: var(--accent);
       border-color: var(--accent);
       color: #fff;
+      box-shadow: 0 0 10px rgba(99, 102, 241, 0.4);
     }
 
-    .btn-primary {
+    .btn-action {
       background: var(--accent);
-      border-color: var(--accent);
+      border: none;
       color: #fff;
+      font-weight: 600;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
     }
+    .btn-action:hover { background: var(--accent-hover); }
 
-    .btn-primary:hover {
-      background: var(--accent-hover);
-    }
-
-    /* グリッドキャンバス */
-    .grid-wrapper {
+    /* エディタのグリッド */
+    .grid-container {
       display: flex;
       justify-content: center;
       align-items: center;
-      background: #17181c;
+      background: #111318;
       padding: 16px;
       border-radius: 10px;
       border: 1px solid var(--border);
     }
 
-    #grid {
+    #drawGrid {
       display: grid;
       gap: 2px;
-      background: #2b2e36;
+      background: #222631;
       padding: 2px;
       border-radius: 6px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     }
 
     .cell {
-      width: 100%;
-      height: 100%;
       background: #ffffff;
       cursor: crosshair;
       border-radius: 2px;
@@ -143,301 +148,411 @@
 
     .cell:hover {
       filter: brightness(0.9);
-      transform: scale(0.96);
+      transform: scale(0.95);
     }
 
-    /* パレット */
-    .color-picker-row {
+    .palette-wrap {
       display: flex;
-      gap: 8px;
-      align-items: center;
-    }
-
-    .palette {
-      display: flex;
-      flex-wrap: wrap;
       gap: 6px;
+      align-items: center;
+      flex-wrap: wrap;
     }
 
-    .palette-swatch {
+    .swatch {
       width: 24px;
       height: 24px;
       border-radius: 4px;
       cursor: pointer;
       border: 2px solid transparent;
-      transition: transform 0.1s;
     }
 
-    .palette-swatch:hover {
-      transform: scale(1.15);
-    }
-
-    .palette-swatch.active {
+    .swatch.active {
       border-color: #fff;
       box-shadow: 0 0 0 1px var(--bg);
-    }
-
-    /* 右側: プレビューエリア */
-    .preview-container {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      background: #0f1013;
-      position: relative;
-    }
-
-    .preview-bar {
-      padding: 10px 20px;
-      background: rgba(30, 32, 37, 0.8);
-      backdrop-filter: blur(8px);
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      z-index: 10;
-    }
-
-    .preview-canvas-wrapper {
-      flex: 1;
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-    }
-
-    #previewCanvas {
-      width: 100%;
-      height: 100%;
     }
 
     input[type="color"] {
       -webkit-appearance: none;
       border: none;
-      width: 32px;
-      height: 32px;
+      width: 28px;
+      height: 28px;
       border-radius: 6px;
       cursor: pointer;
       background: none;
     }
 
-    input[type="range"] {
+    /* 右側ビューエリア */
+    .viewport {
       flex: 1;
-      accent-color: var(--accent);
+      position: relative;
+      background: #090a0d;
+      overflow: hidden;
+    }
+
+    .viewport-toolbar {
+      position: absolute;
+      top: 14px;
+      left: 16px;
+      right: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 5;
+      pointer-events: none;
+    }
+
+    .viewport-toolbar > * {
+      pointer-events: auto;
+    }
+
+    .mode-switch {
+      background: rgba(24, 27, 34, 0.85);
+      backdrop-filter: blur(8px);
+      padding: 4px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      display: flex;
+      gap: 4px;
+    }
+
+    #canvas2D, #canvas3D {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+
+    #canvas3D {
+      display: none;
+    }
+
+    .hint-badge {
+      font-size: 0.75rem;
+      background: rgba(24, 27, 34, 0.8);
+      padding: 4px 10px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
     }
   </style>
 </head>
 <body>
 
   <header>
-    <h1>▦ パターン・タイル・ジェネレーター</h1>
-    <div class="control-row">
-      <button class="btn btn-primary" id="btnExport">PNG保存</button>
+    <h1>▦ 幾何学タイリング ＆ 3D パターンジェネレーター</h1>
+    <div style="display:flex; gap:10px;">
+      <button class="btn" id="btnExport">PNG書き出し</button>
     </div>
   </header>
 
-  <div class="main-container">
+  <div class="main-wrap">
     <!-- サイドバー -->
     <div class="sidebar">
       
-      <!-- グリッドサイズ -->
+      <!-- グリッド解像度 -->
       <div>
-        <div class="section-title">正方形グリッドサイズ</div>
-        <div class="control-row">
+        <div class="section-label">解像度（正方形サイズ）</div>
+        <div class="btn-group">
           <button class="btn active size-btn" data-size="3">3×3</button>
           <button class="btn size-btn" data-size="4">4×4</button>
+          <button class="btn size-btn" data-size="6">6×6</button>
           <button class="btn size-btn" data-size="8">8×8</button>
-          <button class="btn size-btn" data-size="12">12×12</button>
         </div>
       </div>
 
       <!-- カラー設定 -->
       <div>
-        <div class="section-title">描画カラー</div>
-        <div class="color-picker-row">
-          <input type="color" id="currentColor" value="#ff4b4b">
-          <div class="palette" id="palette"></div>
+        <div class="section-label">カラー選択</div>
+        <div class="palette-wrap">
+          <input type="color" id="customColor" value="#ff4757">
+          <div id="palette" style="display:flex; gap:6px; flex-wrap:wrap;"></div>
         </div>
       </div>
 
-      <!-- シンメトリー描画設定 -->
+      <!-- 対称描画 -->
       <div>
-        <div class="section-title">対称描画（自動シンメトリー）</div>
-        <div class="control-row">
+        <div class="section-label">対称モード</div>
+        <div class="btn-group">
           <button class="btn active sym-btn" data-sym="none">通常</button>
           <button class="btn sym-btn" data-sym="x">左右対称</button>
           <button class="btn sym-btn" data-sym="y">上下対称</button>
-          <button class="btn sym-btn" data-sym="quad">万華鏡(4方向)</button>
+          <button class="btn sym-btn" data-sym="quad">万華鏡 (4方向)</button>
         </div>
       </div>
 
-      <!-- 編集グリッド -->
-      <div class="grid-wrapper">
-        <div id="grid"></div>
+      <!-- 編集キャンバス -->
+      <div class="grid-container">
+        <div id="drawGrid"></div>
       </div>
 
-      <!-- 編集アクション -->
-      <div class="control-row" style="flex-wrap: wrap;">
+      <!-- 操作ボタン -->
+      <div class="btn-group">
         <button class="btn" id="btnRandom">🎲 ランダム生成</button>
         <button class="btn" id="btnRotate">⟳ 90°回転</button>
         <button class="btn" id="btnClear">全消去</button>
       </div>
 
-    </div>
+      <hr style="border:0; border-top: 1px solid var(--border); margin: 6px 0;">
 
-    <!-- プレビュー -->
-    <div class="preview-container">
-      <div class="preview-bar">
-        <span style="font-size: 0.9rem; color: var(--text-muted);">連続パターンのプレビュー</span>
-        <div class="control-row">
-          <span style="font-size: 0.8rem; color: var(--text-muted);">タイル密度:</span>
-          <input type="range" id="scaleSlider" min="20" max="150" value="70">
+      <!-- タイリング幾何学モード（アイデア2） -->
+      <div>
+        <div class="section-label">敷き詰め幾何学（タイリング規則）</div>
+        <div class="btn-group">
+          <button class="btn active tile-btn" data-tile="grid">標準格子</button>
+          <button class="btn tile-btn" data-tile="brick">レンガ (千鳥)</button>
+          <button class="btn tile-btn" data-tile="halfdrop">ハーフドロップ</button>
+          <button class="btn tile-btn" data-tile="checker-rot">市松 90°回転</button>
         </div>
       </div>
-      <div class="preview-canvas-wrapper">
-        <canvas id="previewCanvas"></canvas>
+
+      <!-- 3D表示モード設定 -->
+      <div>
+        <div class="section-label">3Dスタイル</div>
+        <div class="btn-group">
+          <button class="btn active 3d-style-btn" data-style="extrude">立体レリーフ (凸凹)</button>
+          <button class="btn 3d-style-btn" data-style="cube">キューブオブジェ</button>
+        </div>
       </div>
+
+    </div>
+
+    <!-- 右側プレビュー -->
+    <div class="viewport">
+      <div class="viewport-toolbar">
+        <div class="mode-switch">
+          <button class="btn active view-btn" data-view="2d">2D テキスタイル</button>
+          <button class="btn view-btn" data-view="3d">3D 空間プレビュー</button>
+        </div>
+        <div class="hint-badge" id="hintText">2Dモード：タイリング密度やパターンをリアルタイム確認</div>
+      </div>
+
+      <!-- 2Dキャンバス -->
+      <canvas id="canvas2D"></canvas>
+
+      <!-- 3Dキャンバス -->
+      <div id="canvas3D"></div>
     </div>
   </div>
 
   <script>
-    // デフォルト色プリセット
-    const PRESET_COLORS = [
-      '#ffffff', '#1e2025', '#ff4b4b', '#ff9f43',
-      '#feca57', '#1dd1a1', '#48dbfb', '#5f27cd'
+    const COLORS = [
+      '#ffffff', '#1e222d', '#ff4757', '#ffa502',
+      '#2ed573', '#1e90ff', '#a55eea', '#ff6b81'
     ];
 
     let gridSize = 3;
-    let symmetryMode = 'none';
-    let activeColor = '#ff4b4b';
-    let isDrawing = false;
+    let symmetry = 'none';
+    let currentColor = '#ff4757';
+    let tilingMode = 'grid'; // grid, brick, halfdrop, checker-rot
+    let currentView = '2d';  // 2d, 3d
+    let current3DStyle = 'extrude'; // extrude, cube
+    let isMouseDown = false;
     let gridData = [];
 
-    const gridEl = document.getElementById('grid');
-    const colorInput = document.getElementById('currentColor');
+    // 要素取得
+    const gridEl = document.getElementById('drawGrid');
+    const colorInput = document.getElementById('customColor');
     const paletteEl = document.getElementById('palette');
-    const previewCanvas = document.getElementById('previewCanvas');
-    const ctx = previewCanvas.getContext('2d');
-    const scaleSlider = document.getElementById('scaleSlider');
+    const canvas2D = document.getElementById('canvas2D');
+    const ctx2D = canvas2D.getContext('2d');
+    const container3D = document.getElementById('canvas3D');
+    const hintText = document.getElementById('hintText');
 
-    // 初期化
-    function init() {
-      setupPalette();
-      setupGridData(gridSize);
-      renderGridUI();
-      resizeCanvas();
-      updatePreview();
+    /* ---------------- THREE.JS セットアップ ---------------- */
+    let scene, camera, renderer, objectGroup;
+    let is3DDragging = false, prevMousePos = { x: 0, y: 0 };
 
-      window.addEventListener('resize', () => {
-        resizeCanvas();
-        updatePreview();
+    function initThree() {
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x0a0c10);
+
+      camera = new THREE.PerspectiveCamera(45, container3D.clientWidth / container3D.clientHeight, 0.1, 1000);
+      camera.position.set(0, 18, 30);
+      camera.lookAt(0, 0, 0);
+
+      renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+      renderer.setSize(container3D.clientWidth, container3D.clientHeight);
+      renderer.shadowMap.enabled = true;
+      container3D.appendChild(renderer.domElement);
+
+      // ライト
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.55);
+      scene.add(ambientLight);
+
+      const dirLight = new THREE.DirectionalLight(0xffffff, 0.85);
+      dirLight.position.set(20, 30, 20);
+      dirLight.castShadow = true;
+      scene.add(dirLight);
+
+      const pointLight = new THREE.PointLight(0x6366f1, 1.2, 50);
+      pointLight.position.set(-15, 15, -10);
+      scene.add(pointLight);
+
+      objectGroup = new THREE.Group();
+      scene.add(objectGroup);
+
+      // 3Dマウスドラッグ回転
+      container3D.addEventListener('mousedown', (e) => {
+        is3DDragging = true;
+        prevMousePos = { x: e.clientX, y: e.clientY };
       });
 
-      window.addEventListener('mouseup', () => isDrawing = false);
-    }
+      window.addEventListener('mouseup', () => is3DDragging = false);
 
-    // パレット生成
-    function setupPalette() {
-      paletteEl.innerHTML = '';
-      PRESET_COLORS.forEach(c => {
-        const swatch = document.createElement('div');
-        swatch.className = 'palette-swatch';
-        swatch.style.background = c;
-        if (c === activeColor) swatch.classList.add('active');
-        swatch.onclick = () => {
-          activeColor = c;
-          colorInput.value = c;
-          document.querySelectorAll('.palette-swatch').forEach(s => s.classList.remove('active'));
-          swatch.classList.add('active');
-        };
-        paletteEl.appendChild(swatch);
+      container3D.addEventListener('mousemove', (e) => {
+        if (!is3DDragging) return;
+        const dx = e.clientX - prevMousePos.x;
+        const dy = e.clientY - prevMousePos.y;
+        objectGroup.rotation.y += dx * 0.008;
+        objectGroup.rotation.x += dy * 0.008;
+        prevMousePos = { x: e.clientX, y: e.clientY };
       });
 
-      colorInput.addEventListener('input', (e) => {
-        activeColor = e.target.value;
+      // マウスホイールズーム
+      container3D.addEventListener('wheel', (e) => {
+        camera.position.z += e.deltaY * 0.03;
+        camera.position.z = Math.max(10, Math.min(60, camera.position.z));
       });
-    }
 
-    // データ配列のリセット
-    function setupGridData(size) {
-      gridSize = size;
-      gridData = Array.from({ length: size }, () => Array(size).fill('#ffffff'));
-    }
-
-    // 編集用グリッドUIを描画
-    function renderGridUI() {
-      gridEl.innerHTML = '';
-      const cellSize = Math.floor(260 / gridSize);
-      gridEl.style.gridTemplateColumns = `repeat(${gridSize}, ${cellSize}px)`;
-      gridEl.style.gridTemplateRows = `repeat(${gridSize}, ${cellSize}px)`;
-
-      for (let y = 0; y < gridSize; y++) {
-        for (let x = 0; x < gridSize; x++) {
-          const cell = document.createElement('div');
-          cell.className = 'cell';
-          cell.style.background = gridData[y][x];
-
-          cell.addEventListener('mousedown', (e) => {
-            isDrawing = true;
-            paint(x, y);
-          });
-
-          cell.addEventListener('mouseenter', () => {
-            if (isDrawing) paint(x, y);
-          });
-
-          gridEl.appendChild(cell);
+      function animate() {
+        requestAnimationFrame(animate);
+        if (currentView === '3d') {
+          if (!is3DDragging) {
+            objectGroup.rotation.y += 0.003; // 自動でゆっくり回転
+          }
+          renderer.render(scene, camera);
         }
       }
+      animate();
     }
 
-    // セルの色塗り（シンメトリー処理含む）
-    function paint(x, y) {
-      const targets = [[x, y]];
-
-      if (symmetryMode === 'x' || symmetryMode === 'quad') {
-        targets.push([gridSize - 1 - x, y]);
-      }
-      if (symmetryMode === 'y' || symmetryMode === 'quad') {
-        targets.push([x, gridSize - 1 - y]);
-      }
-      if (symmetryMode === 'quad') {
-        targets.push([gridSize - 1 - x, gridSize - 1 - y]);
+    // 3Dモデル生成
+    function update3DScene() {
+      if (!scene) return;
+      // 既存オブジェクトの消去
+      while (objectGroup.children.length > 0) {
+        const obj = objectGroup.children[0];
+        objectGroup.remove(obj);
+        if (obj.geometry) obj.geometry.dispose();
       }
 
-      targets.forEach(([cx, cy]) => {
-        gridData[cy][cx] = activeColor;
-        const index = cy * gridSize + cx;
-        if (gridEl.children[index]) {
-          gridEl.children[index].style.background = activeColor;
+      if (current3DStyle === 'extrude') {
+        // 立体レリーフ：タイル状にブロックを敷き詰め、色の明るさで高さを隆起
+        const tileCount = 3; // 3x3 のタイルを並べる
+        const spacing = 1.05;
+        const totalW = tileCount * gridSize * spacing;
+        const offset = -totalW / 2;
+
+        for (let tr = 0; tr < tileCount; tr++) {
+          for (let tc = 0; tc < tileCount; tc++) {
+            for (let y = 0; y < gridSize; y++) {
+              for (let x = 0; x < gridSize; x++) {
+                // タイリング回転等の計算
+                let srcX = x;
+                let srcY = y;
+                if (tilingMode === 'checker-rot' && (tr + tc) % 2 === 1) {
+                  srcX = y;
+                  srcY = gridSize - 1 - x;
+                }
+
+                const hex = gridData[srcY][srcX];
+                const color = new THREE.Color(hex);
+                // 明度から高さを決定
+                const luminance = 0.299 * color.r + 0.587 * color.g + 0.114 * color.b;
+                const h = 0.3 + luminance * 3.5;
+
+                const geo = new THREE.BoxGeometry(1, h, 1);
+                const mat = new THREE.MeshStandardMaterial({
+                  color: color,
+                  roughness: 0.25,
+                  metalness: 0.1
+                });
+                const mesh = new THREE.Mesh(geo, mat);
+
+                let posX = offset + (tc * gridSize + x) * spacing;
+                let posZ = offset + (tr * gridSize + y) * spacing;
+
+                if (tilingMode === 'brick' && tr % 2 === 1) {
+                  posX += (gridSize * spacing) / 2;
+                }
+
+                mesh.position.set(posX, h / 2, posZ);
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
+                objectGroup.add(mesh);
+              }
+            }
+          }
         }
-      });
+        objectGroup.position.set(0, -1, 0);
+      } else {
+        // キューブオブジェ：中央に浮遊する大型サイコロの全面にテクスチャとして貼り付け
+        const tileCanvas = document.createElement('canvas');
+        tileCanvas.width = 256;
+        tileCanvas.height = 256;
+        const tCtx = tileCanvas.getContext('2d');
+        const pSize = 256 / gridSize;
 
-      updatePreview();
+        for (let y = 0; y < gridSize; y++) {
+          for (let x = 0; x < gridSize; x++) {
+            tCtx.fillStyle = gridData[y][x];
+            tCtx.fillRect(x * pSize, y * pSize, pSize, pSize);
+          }
+        }
+
+        const texture = new THREE.CanvasTexture(tileCanvas);
+        texture.magFilter = THREE.NearestFilter; // ドットをくっきり
+        const geo = new THREE.BoxGeometry(10, 10, 10);
+        const mat = new THREE.MeshStandardMaterial({
+          map: texture,
+          roughness: 0.2,
+          metalness: 0.15
+        });
+        const cube = new THREE.Mesh(geo, mat);
+        objectGroup.add(cube);
+        objectGroup.position.set(0, 0, 0);
+      }
     }
 
-    // プレビューの描画（Canvas上でリピートタイリング）
-    function updatePreview() {
-      const w = previewCanvas.width;
-      const h = previewCanvas.height;
-      ctx.clearRect(0, 0, w, h);
+    /* ---------------- 2D 描画・更新 ---------------- */
+    function update2DPreview() {
+      const w = canvas2D.width;
+      const h = canvas2D.height;
+      ctx2D.clearRect(0, 0, w, h);
 
-      const tileSize = parseInt(scaleSlider.value, 10);
+      const tileSize = 80;
       const pixelSize = tileSize / gridSize;
 
-      const cols = Math.ceil(w / tileSize) + 1;
-      const rows = Math.ceil(h / tileSize) + 1;
+      const cols = Math.ceil(w / tileSize) + 2;
+      const rows = Math.ceil(h / tileSize) + 2;
 
-      for (let r = 0; r < rows; r++) {
-        for (let c = 0; c < cols; c++) {
-          const startX = c * tileSize;
-          const startY = r * tileSize;
+      for (let r = -1; r < rows; r++) {
+        for (let c = -1; c < cols; c++) {
+          let startX = c * tileSize;
+          let startY = r * tileSize;
+
+          // 敷き詰め幾何学（アイデア2のロジック）
+          let rotate90 = false;
+          if (tilingMode === 'brick' && Math.abs(r) % 2 === 1) {
+            startX += tileSize / 2;
+          } else if (tilingMode === 'halfdrop' && Math.abs(c) % 2 === 1) {
+            startY += tileSize / 2;
+          } else if (tilingMode === 'checker-rot' && (Math.abs(r + c) % 2 === 1)) {
+            rotate90 = true;
+          }
 
           for (let y = 0; y < gridSize; y++) {
             for (let x = 0; x < gridSize; x++) {
-              ctx.fillStyle = gridData[y][x];
-              ctx.fillRect(
+              let drawX = x;
+              let drawY = y;
+              if (rotate90) {
+                drawX = y;
+                drawY = gridSize - 1 - x;
+              }
+
+              ctx2D.fillStyle = gridData[drawY][drawX];
+              ctx2D.fillRect(
                 startX + x * pixelSize,
                 startY + y * pixelSize,
                 Math.ceil(pixelSize),
@@ -449,25 +564,154 @@
       }
     }
 
-    function resizeCanvas() {
-      const rect = previewCanvas.parentElement.getBoundingClientRect();
-      previewCanvas.width = rect.width;
-      previewCanvas.height = rect.height;
+    function syncAll() {
+      update2DPreview();
+      update3DScene();
     }
 
-    // ランダム生成
-    document.getElementById('btnRandom').onclick = () => {
-      const colors = [activeColor, '#ffffff', '#1e2025'];
+    /* ---------------- エディタUIロジック ---------------- */
+    function setupGridData(size) {
+      gridSize = size;
+      gridData = Array.from({ length: size }, () => Array(size).fill('#ffffff'));
+    }
+
+    function renderEditorGrid() {
+      gridEl.innerHTML = '';
+      const cellSize = Math.floor(250 / gridSize);
+      gridEl.style.gridTemplateColumns = `repeat(${gridSize}, ${cellSize}px)`;
+      gridEl.style.gridTemplateRows = `repeat(${gridSize}, ${cellSize}px)`;
+
       for (let y = 0; y < gridSize; y++) {
         for (let x = 0; x < gridSize; x++) {
-          gridData[y][x] = colors[Math.floor(Math.random() * colors.length)];
+          const cell = document.createElement('div');
+          cell.className = 'cell';
+          cell.style.background = gridData[y][x];
+
+          cell.addEventListener('mousedown', () => {
+            isMouseDown = true;
+            paintCell(x, y);
+          });
+          cell.addEventListener('mouseenter', () => {
+            if (isMouseDown) paintCell(x, y);
+          });
+
+          gridEl.appendChild(cell);
         }
       }
-      renderGridUI();
-      updatePreview();
+    }
+
+    function paintCell(x, y) {
+      const targets = [[x, y]];
+      if (symmetry === 'x' || symmetry === 'quad') targets.push([gridSize - 1 - x, y]);
+      if (symmetry === 'y' || symmetry === 'quad') targets.push([x, gridSize - 1 - y]);
+      if (symmetry === 'quad') targets.push([gridSize - 1 - x, gridSize - 1 - y]);
+
+      targets.forEach(([cx, cy]) => {
+        gridData[cy][cx] = currentColor;
+        const idx = cy * gridSize + cx;
+        if (gridEl.children[idx]) {
+          gridEl.children[idx].style.background = currentColor;
+        }
+      });
+
+      syncAll();
+    }
+
+    function setupPalette() {
+      paletteEl.innerHTML = '';
+      COLORS.forEach(c => {
+        const sw = document.createElement('div');
+        sw.className = 'swatch';
+        sw.style.background = c;
+        if (c === currentColor) sw.classList.add('active');
+        sw.onclick = () => {
+          currentColor = c;
+          colorInput.value = c;
+          document.querySelectorAll('.swatch').forEach(s => s.classList.remove('active'));
+          sw.classList.add('active');
+        };
+        paletteEl.appendChild(sw);
+      });
+
+      colorInput.addEventListener('input', (e) => {
+        currentColor = e.target.value;
+      });
+    }
+
+    /* ---------------- イベントリスナー ---------------- */
+    // 解像度変更
+    document.querySelectorAll('.size-btn').forEach(b => {
+      b.onclick = () => {
+        document.querySelectorAll('.size-btn').forEach(btn => btn.classList.remove('active'));
+        b.classList.add('active');
+        setupGridData(parseInt(b.dataset.size, 10));
+        renderEditorGrid();
+        syncAll();
+      };
+    });
+
+    // 対称モード
+    document.querySelectorAll('.sym-btn').forEach(b => {
+      b.onclick = () => {
+        document.querySelectorAll('.sym-btn').forEach(btn => btn.classList.remove('active'));
+        b.classList.add('active');
+        symmetry = b.dataset.sym;
+      };
+    });
+
+    // 敷き詰め幾何学（アイデア2）
+    document.querySelectorAll('.tile-btn').forEach(b => {
+      b.onclick = () => {
+        document.querySelectorAll('.tile-btn').forEach(btn => btn.classList.remove('active'));
+        b.classList.add('active');
+        tilingMode = b.dataset.tile;
+        syncAll();
+      };
+    });
+
+    // 3Dスタイル切り替え
+    document.querySelectorAll('.3d-style-btn').forEach(b => {
+      b.onclick = () => {
+        document.querySelectorAll('.3d-style-btn').forEach(btn => btn.classList.remove('active'));
+        b.classList.add('active');
+        current3DStyle = b.dataset.style;
+        update3DScene();
+      };
+    });
+
+    // 2D / 3D 切り替え
+    document.querySelectorAll('.view-btn').forEach(b => {
+      b.onclick = () => {
+        document.querySelectorAll('.view-btn').forEach(btn => btn.classList.remove('active'));
+        b.classList.add('active');
+        currentView = b.dataset.view;
+
+        if (currentView === '2d') {
+          canvas2D.style.display = 'block';
+          container3D.style.display = 'none';
+          hintText.textContent = '2Dモード：タイリング密度やパターンをリアルタイム確認';
+        } else {
+          canvas2D.style.display = 'none';
+          container3D.style.display = 'block';
+          hintText.textContent = '3Dモード：マウスドラッグで回転、ホイールでズーム';
+          resizeViewport();
+          update3DScene();
+        }
+      };
+    });
+
+    // アクション
+    document.getElementById('btnRandom').onclick = () => {
+      const palette = [currentColor, '#ffffff', '#1e222d'];
+      for (let y = 0; y < gridSize; y++) {
+        for (let x = 0; x < gridSize; x++) {
+          gridData[y][x] = palette[Math.floor(Math.random() * palette.length)];
+        }
+      }
+      renderEditorGrid();
+      syncAll();
     };
 
-    // 90度回転
     document.getElementById('btnRotate').onclick = () => {
       const next = Array.from({ length: gridSize }, () => Array(gridSize).fill('#fff'));
       for (let y = 0; y < gridSize; y++) {
@@ -476,48 +720,50 @@
         }
       }
       gridData = next;
-      renderGridUI();
-      updatePreview();
+      renderEditorGrid();
+      syncAll();
     };
 
-    // 全消去
     document.getElementById('btnClear').onclick = () => {
       setupGridData(gridSize);
-      renderGridUI();
-      updatePreview();
+      renderEditorGrid();
+      syncAll();
     };
 
-    // グリッドサイズ切り替えボタン
-    document.querySelectorAll('.size-btn').forEach(btn => {
-      btn.onclick = () => {
-        document.querySelectorAll('.size-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        setupGridData(parseInt(btn.dataset.size, 10));
-        renderGridUI();
-        updatePreview();
-      };
-    });
-
-    // 対称モード切り替えボタン
-    document.querySelectorAll('.sym-btn').forEach(btn => {
-      btn.onclick = () => {
-        document.querySelectorAll('.sym-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        symmetryMode = btn.dataset.sym;
-      };
-    });
-
-    scaleSlider.addEventListener('input', updatePreview);
-
-    // PNGエクスポート
+    // PNG書き出し
     document.getElementById('btnExport').onclick = () => {
       const link = document.createElement('a');
-      link.download = `pattern_${gridSize}x${gridSize}.png`;
-      link.href = previewCanvas.toDataURL('image/png');
+      link.download = `pattern_${currentView}.png`;
+      if (currentView === '2d') {
+        link.href = canvas2D.toDataURL('image/png');
+      } else {
+        renderer.render(scene, camera);
+        link.href = renderer.domElement.toDataURL('image/png');
+      }
       link.click();
     };
 
-    init();
+    function resizeViewport() {
+      const vp = canvas2D.parentElement;
+      canvas2D.width = vp.clientWidth;
+      canvas2D.height = vp.clientHeight;
+      if (renderer) {
+        renderer.setSize(vp.clientWidth, vp.clientHeight);
+        camera.aspect = vp.clientWidth / vp.clientHeight;
+        camera.updateProjectionMatrix();
+      }
+      syncAll();
+    }
+
+    window.addEventListener('mouseup', () => isMouseDown = false);
+    window.addEventListener('resize', resizeViewport);
+
+    // 初期起動
+    setupPalette();
+    setupGridData(gridSize);
+    renderEditorGrid();
+    initThree();
+    resizeViewport();
   </script>
 </body>
 </html>
